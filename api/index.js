@@ -4,6 +4,11 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+// Add these .trim() and .replace() calls to fix hidden characters
+const supabaseUrl = process.env.SUPABASE_URL.trim().replace(/\/$/, "");
+const supabaseKey = process.env.SUPABASE_KEY.trim();
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
 app.use(cors());
