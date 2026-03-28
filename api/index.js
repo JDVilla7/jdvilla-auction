@@ -57,20 +57,19 @@ app.get('/api/tournament/data', async (req, res) => {
 
 app.post('/api/tournament/save', async (req, res) => {
     try {
-        const { leagueName, numTeams, budget, minSquad, maxSquad } = req.body;
         const db = await loadDB();
         
+        // Merge the form data AND change the status to "Live"
         db.tournamentData = { 
             ...db.tournamentData, 
-            leagueName, numTeams, budget, minSquad, maxSquad,
-            status: "Setup" 
+            ...req.body, 
+            status: "Phase_1_Secret" // THIS BREAKS THE LOOP!
         };
         
         await saveDB(db);
         res.json({ success: true });
     } catch (e) {
-        console.error("Save Error:", e.message);
-        res.status(500).json({ error: "Failed to save data", details: e.message });
+        res.status(500).json({ error: e.message });
     }
 });
 
