@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+:root {
+    --gold: #f8b500;
+    --dark-bg: #0a0e14;
+    --card-bg: rgba(20, 26, 35, 0.95);
+    --border: rgba(255, 255, 255, 0.1);
+}
+
+body, html {
+    margin: 0; padding: 0; height: 100vh; font-family: 'Inter', sans-serif;
+    background: var(--dark-bg) url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000') no-repeat center center fixed;
+    background-size: cover; color: white; overflow: hidden;
+}
+
+.overlay {
+    height: 100vh; width: 100vw; background: rgba(0,0,0,0.7);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+}
+
+.glass-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 25px; width: 100%; max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.dashboard-card { max-width: 1000px; height: auto; display: flex; flex-direction: column; justify-content: flex-start; }
+
+h1, h2 { color: var(--gold); text-transform: uppercase; margin-top: 0; text-align: center; }
+
+input, select {
+    background: #1c252e; border: 1px solid #334155; color: white;
+    padding: 12px; border-radius: 6px; width: 100%; margin: 8px 0;
+}
+
+.btn-gold {
+    background: var(--gold); color: black; font-weight: 800; border: none;
+    padding: 14px; border-radius: 6px; cursor: pointer; width: 100%;
+    text-transform: uppercase; transition: 0.2s;
+}
+
+.btn-gold:hover { background: #e0a400; }
+.btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.scroll-list { flex: 1; overflow-y: auto; margin: 15px 0; border-top: 1px solid #334155; padding-top: 10px; }
+
+.item-row {
+    background: #161e27; padding: 12px; border-radius: 8px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+
+.locked-mode { opacity: 0.5; pointer-events: none; filter: grayscale(100%); }
+.hidden { display: none !important; }

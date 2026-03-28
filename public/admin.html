@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JDVILLA ADMIN | Control Tower</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .row-btns { display: flex; gap: 5px; }
+        .row-btns button { padding: 5px 10px; font-size: 0.7rem; }
+        #nextPhaseSelection { background: rgba(248, 181, 0, 0.1); padding: 15px; border-radius: 10px; border: 1px solid var(--gold); }
+        
+        /* Live Hammer Styles */
+        #liveAdminSection { margin-top: 20px; border-top: 3px solid var(--gold); padding-top: 15px; background: rgba(0,0,0,0.3); border-radius: 0 0 12px 12px; padding-bottom: 20px; }
+        .hammer-card { background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #334155; }
+        .live-search-item { background: #1c252e; padding: 10px; margin-bottom: 5px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+<div class="overlay">
+    
+    <div id="loginBox" class="glass-card">
+        <h1>Admin Login</h1>
+        <input type="email" id="email" placeholder="Email" value="admin@jdvilla.com">
+        <input type="password" id="pass" placeholder="Password" value="Lappu2026">
+        <button class="btn-gold" onclick="login()">Enter Arena</button>
+    </div>
+
+    <div id="lobbyBox" class="glass-card" style="display:none; text-align:center;">
+        <h2 style="color:var(--gold);">ADMIN CONTROL CENTER</h2>
+        <div style="display:grid; gap:15px; margin-top:20px;">
+            <button class="btn-gold" style="background:#28a745;" onclick="showSetup()">➕ START NEW TOURNAMENT</button>
+            
+            <div id="currentTournamentOption" style="border:1px solid #334155; padding:15px; border-radius:12px;">
+                <h3 id="activeLeagueName" style="margin:0;">No Active Tournament</h3>
+                <p id="activeLeagueStatus" style="font-size:0.8rem; opacity:0.6;">---</p>
+                <button id="resumeBtn" class="btn-gold" style="display:none; margin-top:10px;" onclick="resumeTournament()">RESUME TOURNAMENT</button>
+            </div>
+
+            <div style="opacity:0.5; border-top:1px solid #334155; padding-top:10px;">
+                <h4>COMPLETED</h4>
+                <div id="completedList" style="font-size:0.8rem;">None Yet</div>
+            </div>
+            
+            <button onclick="logoutAdmin()" style="background:none; border:none; color:#ff4d4d; cursor:pointer;">Logout</button>
+        </div>
+    </div>
+
+    <div id="setupBox" class="glass-card" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>Tournament Setup</h2>
+            <button onclick="runTest()" style="background:var(--gold); border:none; padding:5px; cursor:pointer; border-radius:4px;">🚀 TEST MODE</button>
+        </div>
+        <input type="text" id="lName" placeholder="League Name">
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="numT" placeholder="Teams">
+            <input type="number" id="bud" value="150" placeholder="Budget (CR)">
+        </div>
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="minS" placeholder="Min Squad">
+            <input type="number" id="maxS" placeholder="Max Squad">
+        </div>
+        <button class="btn-gold" onclick="saveSetup()">Create Tournament</button>
+    </div>
+
+    <div id="dashBox" class="glass-card dashboard-card" style="display:none;">
+        <h2 id="displayTitle"></h2>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+            <input type="text" id="own" placeholder="Owner Name">
+            <input type="text" id="team" placeholder="Team Name">
+            <input type="email" id="mail" placeholder="Owner Email">
+        </div>
+        <button class="btn-gold" style="margin-top:10px;" onclick="addTeam()">Add Team</button>
+        <button class="btn-gold" style="background:#007bff; color:white; margin-bottom:10px;" onclick="sendInvites()">📧 SEND LOGIN LINKS TO ALL OWNERS</button>
+        <div class="scroll-list" id="teamList" style="max-height: 150px;"></div>
+
+        <div id="timelineSection" style="border-top:1px solid #334155; padding-top:10px;">
+            <h3 id="phaseLabel" style="margin:0; font-size:0.9rem;">PHASE TIMELINE:</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="datetime-local" id="pStart">
+                <input type="datetime-local" id="pEnd">
+            </div>
+            <button class="btn-gold" id="phaseBtn" onclick="startPhase()">Start Phase</button>
+        </div>
+
+        <button id="declareBtn" class="btn-gold" style="display:none; background:#28a745; color:white; margin-top:20px;" onclick="declareResults()">DECLARE RESULTS</button>
+
+        <div id="liveAdminSection" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="color:var(--gold); margin:0;">🔨 LIVE HAMMER CONTROL</h3>
+                <button onclick="fetchAdminPlayers()" style="background:transparent; border:1px solid var(--gold); color:var(--gold); padding:2px 8px; font-size:0.6rem; cursor:pointer; border-radius:4px;">🔄 REFRESH LIST</button>
+            </div>
+            
+            <div class="filter-grid-admin" style="margin-top:10px;">
+                <input type="text" id="adminSearch" placeholder="Search Name..." oninput="filterAdminPlayers()">
+                <select id="adminRoleFilter" onchange="filterAdminPlayers()"><option value="">All Roles</option></select>
+                <select id="adminCountryFilter" onchange="filterAdminPlayers()"><option value="">All Countries</option></select>
+            </div>
+
+            <div id="adminPlayerList" class="scroll-list" style="max-height: 180px; background: rgba(0,0,0,0.2); border: 1px solid #334155;">
+                <p style="text-align:center; opacity:0.5; padding:20px;">No players loaded. Hit Refresh.</p>
+            </div>
+
+            <div id="activeHammer" class="hammer-card" style="display:none; margin-top:15px;">
+                <h2 id="hName" style="margin:0; color:var(--gold); font-size: 1.8rem;">---</h2>
+                <div style="font-size:2.2rem; font-weight:900; margin:5px 0; color:#fff;" id="hBid">0.00 CR</div>
+                <div style="margin-bottom:15px; font-weight: bold; color: var(--gold);" id="hWinner">No Bidder</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <button class="btn-gold" style="background:#28a745; color:white;" onclick="confirmSold()">SOLD</button>
+                    <button class="btn-gold" style="background:#dc3545; color:white;" onclick="confirmUnsold()">UNSOLD</button>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.05); padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
+                <h4 style="margin:0 0 10px 0; color:var(--gold); font-size:0.8rem;">➕ ADD & HAMMER NEW PLAYER</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                    <input type="text" id="manualName" placeholder="Player Name" style="margin:0; padding:8px;">
+                    <input type="text" id="manualRole" placeholder="Role" style="margin:0; padding:8px;">
+                    <input type="text" id="manualCountry" placeholder="Country" style="margin:0; padding:8px;">
+                    <input type="number" id="manualBase" placeholder="Base (Cr)" style="margin:0; padding:8px;">
+                </div>
+                <button class="btn-gold" style="margin-top:10px; height:35px; font-size:0.7rem;" onclick="addAndHammer()">PUSH TO HAMMER</button>
+            </div>
+
+            <button id="endAuctionBtn" class="btn-gold" style="background:#007bff; color:white; margin-top:20px; display:none;" onclick="endAuction()">🏁 COMPLETE AUCTION</button>
+        
+        </div>
+
+        <div id="nextPhaseSelection" style="display:none; margin-top:20px;">
+            <h3 style="color:var(--gold); margin-top:0;">CHOOSE NEXT STEP:</h3>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="datetime-local" id="nextStart">
+                <input type="datetime-local" id="nextEnd">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn-gold" onclick="startNext('secret')" style="background:#007bff; color:white;">SECRET BIDDING</button>
+                <button class="btn-gold" onclick="startNext('live')" style="background:#dc3545; color:white;">LIVE AUCTION</button>
+            </div>
+        </div>
+
+        <div id="tournamentControlSection" style="display:none; border-top: 3px solid var(--gold); margin-top: 20px; padding-top: 15px;">
+            <h3 style="color:var(--gold); margin:0 0 15px 0;">🏟️ MATCH SCHEDULER</h3>
+            
+            <div style="background: rgba(255,255,255,0.05); padding:15px; border-radius:10px; border:1px solid #334155;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div>
+                        <label style="font-size:0.7rem; color:var(--gold);">TEAM A</label>
+                        <select id="mTeamA" style="margin:0;"></select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.7rem; color:var(--gold);">TEAM B</label>
+                        <select id="mTeamB" style="margin:0;"></select>
+                    </div>
+                </div>
+                <div style="margin-top:10px;">
+                    <label style="font-size:0.7rem; color:var(--gold);">MATCH START TIME</label>
+                    <input type="datetime-local" id="mTime" style="margin:0;">
+                </div>
+                <button class="btn-gold" style="margin-top:15px; height:40px;" onclick="scheduleMatch()">CREATE MATCH</button>
+            </div>
+
+            <div id="adminMatchList" class="scroll-list" style="max-height: 250px; margin-top:15px;">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- GLOBAL VARIABLES ---
+let localData = { teams: [] };
+let currentLiveState = {};
+let unsoldPlayersList = [];
+let dashboardIntervalsStarted = false;
+
+// 1. PERSISTENCE: RUNS ON EVERY PAGE RELOAD
+window.onload = function() {
+    const isAdmin = localStorage.getItem('jdvilla_admin_logged');
+    if (isAdmin === 'true') {
+        showLobby();
+    }
+};
+
+// 2. AUTHENTICATION
+async function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('pass').value;
+    const res = await fetch('/api/admin/login', { 
+        method: 'POST', headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({email, password}) 
+    });
+
+    if(res.ok) {
+        localStorage.setItem('jdvilla_admin_logged', 'true');
+        showLobby();
+    } else {
+        alert("Login Failed");
+    }
+}
+
+function logoutAdmin() {
+    localStorage.removeItem('jdvilla_admin_logged');
+    location.reload();
+}
+
+// 3. LOBBY NAVIGATION
+async function showLobby() {
+    // Hide all main boxes
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('setupBox').style.display = 'none';
+    document.getElementById('dashBox').style.display = 'none';
+    document.getElementById('lobbyBox').style.display = 'block';
+
+    // Fetch tournament status to update the Lobby UI
+    const res = await fetch('/api/tournament/data');
+    localData = await res.json();
+
+    const activeTitle = document.getElementById('activeLeagueName');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const activeStatus = document.getElementById('activeLeagueStatus');
+
+    if(localData.leagueName) {
+        activeTitle.innerText = localData.leagueName.toUpperCase();
+        activeStatus.innerText = "Current Status: " + localData.status.replace(/_/g, ' ');
+        resumeBtn.style.display = 'block';
+    } else {
+        activeTitle.innerText = "No Active Tournament";
+        activeStatus.innerText = "Start a fresh one below.";
+        resumeBtn.style.display = 'none';
+    }
+}
+
+function showSetup() {
+    if(localData.leagueName && !confirm("Warning: Starting a new tournament will reset current data. Proceed?")) return;
+    document.getElementById('lobbyBox').style.display = 'none';
+    document.getElementById('setupBox').style.display = 'block';
+}
+
+function resumeTournament() {
+    document.getElementById('lobbyBox').style.display = 'none';
+    document.getElementById('dashBox').style.display = 'flex';
+    loadDashboardData();
+}
+
+// 4. DASHBOARD INITIALIZATION
+async function loadDashboardData() {
+    document.getElementById('displayTitle').innerText = localData.leagueName;
+    
+    // FORCE SHOW MATCH SCHEDULER FOR TESTING
+    document.getElementById('tournamentControlSection').style.display = 'block';
+    populateMatchTeams();
+    loadScheduledMatches();
+
+    if(localData.status === "Phase_Live_Auction") {
+        document.getElementById('timelineSection').style.display = 'none';
+        document.getElementById('liveAdminSection').style.display = 'block';
+        if(document.getElementById('endAuctionBtn')) document.getElementById('endAuctionBtn').style.display = 'block';
+        fetchAdminPlayers();
+        if(!window.hammerInterval) window.hammerInterval = setInterval(syncHammer, 1000);
+    } 
+    else if(localData.status === "Results_Declared") {
+        document.getElementById('nextPhaseSelection').style.display = 'block';
+    }
+    else if(localData.status === "Auction_Completed") {
+        document.getElementById('timelineSection').style.display = 'none';
+        document.getElementById('liveAdminSection').style.display = 'none';
+        if(window.hammerInterval) clearInterval(window.hammerInterval);
+    }
+
+    if(!dashboardIntervalsStarted) {
+        setInterval(updateAdminDashboard, 2000);
+        dashboardIntervalsStarted = true;
+    }
+}
+
+// 5. DASHBOARD SYNC (Team List & Declaration)
+async function updateAdminDashboard() {
+    const res = await fetch('/api/admin/status');
+    const statusData = await res.json();
+    document.getElementById('teamList').innerHTML = statusData.map((t, i) => `
+        <div class="item-row">
+            <span><b>${t.name}</b> (${t.owner}) ${t.submitted ? '✅' : '⏳'}</span>
+            <div class="row-btns">
+                <button onclick="editTeam(${i})">Edit</button>
+                <button onclick="deleteTeam(${i})" style="background:#ff4d4d; color:white;">Del</button>
+                <button onclick="grantExtraTime('${t.email}')">+Time</button>
+            </div>
+        </div>`).join('');
+
+    if (localData.phase1End && localData.status && localData.status.includes("Phase_Secret")) {
+        const now = new Date().getTime();
+        const end = new Date(localData.phase1End).getTime();
+        document.getElementById('declareBtn').style.display = (now >= end) ? 'block' : 'none';
+    }
+}
+
+// 6. LIVE HAMMER LOGIC
+async function fetchAdminPlayers() {
+    try {
+        const res = await fetch('/api/players');
+        unsoldPlayersList = await res.json();
+        
+        const roles = [...new Set(unsoldPlayersList.map(p => p.role))].filter(Boolean).sort();
+        const countries = [...new Set(unsoldPlayersList.map(p => p.country))].filter(Boolean).sort();
+        
+        const rS = document.getElementById('adminRoleFilter');
+        const cS = document.getElementById('adminCountryFilter');
+        
+        rS.innerHTML = '<option value="">All Roles</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+        cS.innerHTML = '<option value="">All Countries</option>' + countries.map(c => `<option value="${c}">${c}</option>`).join('');
+        
+        filterAdminPlayers();
+    } catch (e) { console.error("Error loading players:", e); }
+}
+
+function filterAdminPlayers() {
+    const q = document.getElementById('adminSearch').value.toLowerCase();
+    const r = document.getElementById('adminRoleFilter').value;
+    const c = document.getElementById('adminCountryFilter').value;
+    const list = document.getElementById('adminPlayerList');
+
+    const filtered = unsoldPlayersList.filter(p => 
+        p.name.toLowerCase().includes(q) && (!r || p.role === r) && (!c || p.country === c)
+    );
+
+    if(filtered.length === 0) {
+        list.innerHTML = `<p style="text-align:center; padding:20px; opacity:0.5;">No unsold players matching filters.</p>`;
+        return;
+    }
+
+    list.innerHTML = filtered.map(p => `
+        <div class="live-search-item">
+            <div>
+                <b>${p.name}</b><br>
+                <small>${p.role} | ${p.country} | ${p.base} Cr</small>
+            </div>
+            <button class="btn-gold" style="width:auto; padding:5px 12px;" onclick='pushToHammer(${JSON.stringify(p)})'>HAMMER</button>
+        </div>`).join('');
+}
+
+// 1. ADD & HAMMER MANUAL PLAYER
+async function addAndHammer() {
+    const player = {
+        name: document.getElementById('manualName').value,
+        role: document.getElementById('manualRole').value,
+        country: document.getElementById('manualCountry').value,
+        base: parseFloat(document.getElementById('manualBase').value)
+    };
+    if(!player.name || isNaN(player.base)) return alert("Fill Name and valid Base Price!");
+    
+    const res = await fetch('/api/admin/add-player', {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(player)
+    });
+
+    if(res.ok) {
+        // Hide list and show hammer immediately
+        document.getElementById('adminPlayerList').style.display = "none";
+        document.getElementById('activeHammer').style.display = "block";
+        syncHammer();
+        
+        // Clear inputs for next time
+        document.getElementById('manualName').value = "";
+        document.getElementById('manualBase').value = "";
+    }
+}
+
+// 2. END AUCTION PERMANENTLY
+async function endAuction() {
+    if(!confirm("End Auction? This will switch all owners to Match & Fantasy mode.")) return;
+    const res = await fetch('/api/admin/complete-auction', { method: 'POST' });
+    if(res.ok) {
+        alert("Auction officially completed!");
+        location.reload(); // Takes you back to the Lobby
+    }
+}
+
+async function pushToHammer(player) {
+    const res = await fetch('/api/admin/live/start', { 
+        method: 'POST', headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify({ player }) 
+    });
+    if(res.ok) {
+        document.getElementById('adminPlayerList').style.display = "none"; 
+        document.getElementById('activeHammer').style.display = "block";
+        document.getElementById('hName').innerText = player.name;
+        syncHammer(); 
+    }
+}
+
+async function syncHammer() {
+    try {
+        const res = await fetch('/api/live/state');
+        currentLiveState = await res.json();
+        
+        if(currentLiveState.activePlayer) {
+            document.getElementById('activeHammer').style.display = "block";
+            document.getElementById('hName').innerText = currentLiveState.activePlayer.name;
+            document.getElementById('hBid').innerText = `${currentLiveState.currentBid.toFixed(2)} CR`;
+            document.getElementById('hWinner').innerText = currentLiveState.highestBidder ? `Winning: ${currentLiveState.highestBidder.teamName}` : "No Bidder";
+        } else {
+            document.getElementById('activeHammer').style.display = "none";
+            document.getElementById('adminPlayerList').style.display = "block";
+        }
+    } catch(e) { console.error("Sync Error"); }
+}
+
+async function confirmSold() {
+    if(!currentLiveState || !currentLiveState.highestBidder) return alert("No bidder found!");
+    
+    const winnerEmail = currentLiveState.highestBidder.email;
+    const price = currentLiveState.currentBid;
+
+    const resT = await fetch('/api/tournament/data');
+    const tData = await resT.json();
+    const resW = await fetch(`/api/results/my-squad/${winnerEmail}`);
+    const wins = await resW.json();
+
+    // SQUAD CHECK
+    if (wins.length >= (parseInt(tData.maxSquad) || 15)) {
+        return alert(`❌ SQUAD FULL! (Limit: ${tData.maxSquad})`);
+    }
+
+    // BUDGET CHECK
+    let spent = 0;
+    wins.forEach(w => spent += w.price);
+    if ((spent + price) > (parseFloat(tData.budget) || 150)) {
+        return alert(`❌ INSUFFICIENT FUNDS! Left: ${(tData.budget - spent).toFixed(2)} Cr.`);
+    }
+
+    const res = await fetch('/api/admin/live/sold', { 
+        method: 'POST', headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify({ player: currentLiveState.activePlayer, winner: currentLiveState.highestBidder, price: price }) 
+    });
+    
+    if(res.ok) {
+        alert("🔨 SOLD!");
+        document.getElementById('activeHammer').style.display = "none";
+        document.getElementById('adminPlayerList').style.display = "block";
+        fetchAdminPlayers();
+    }
+}
+
+async function confirmUnsold() {
+    await fetch('/api/admin/live/unsold', { method: 'POST' });
+    alert("PLAYER UNSOLD");
+    fetchAdminPlayers();
+}
+
+// 7. TOURNAMENT SETUP & PHASE MGMT
+async function saveToServer() { await fetch('/api/tournament/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(localData) }); }
+
+function runTest() {
+    document.getElementById('lName').value = "JDVILLA TEST CUP";
+    document.getElementById('numT').value = 3; document.getElementById('minS').value = 11; document.getElementById('maxS').value = 15;
+}
+
+async function saveSetup() {
+    localData.leagueName = document.getElementById('lName').value;
+    localData.numTeams = document.getElementById('numT').value;
+    localData.budget = document.getElementById('bud').value;
+    localData.minSquad = document.getElementById('minS').value;
+    localData.maxSquad = document.getElementById('maxS').value;
+    localData.currentPhase = 1; localData.status = "Phase_Secret_Live";
+    await saveToServer(); location.reload();
+}
+
+// REPLACE your current addTeam with this
+async function addTeam() {
+    const owner = document.getElementById('own').value;
+    const team = document.getElementById('team').value;
+    const email = document.getElementById('mail').value;
+
+    if(!owner || !team || !email) return alert("Fill all team details!");
+
+    localData.teams.push({ owner, name: team, email });
+    await saveToServer(); 
+    
+    // Clear inputs
+    document.getElementById('own').value = ''; 
+    document.getElementById('team').value = ''; 
+    document.getElementById('mail').value = '';
+
+    // NEW: Refresh the Match Scheduler dropdowns immediately
+    populateMatchTeams(); 
+}
+
+async function deleteTeam(i) { if(confirm("Delete?")) { localData.teams.splice(i, 1); await saveToServer(); } }
+
+async function editTeam(i) {
+    const t = localData.teams[i];
+    document.getElementById('own').value = t.owner; document.getElementById('team').value = t.name; document.getElementById('mail').value = t.email;
+    localData.teams.splice(i, 1); await saveToServer();
+}
+
+async function grantExtraTime(email) {
+    const time = prompt("New end time:");
+    if(time) await fetch('/api/admin/extra-time', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, newEndTime: time}) });
+}
+
+async function startPhase() {
+    localData.phase1Start = document.getElementById('pStart').value;
+    localData.phase1End = document.getElementById('pEnd').value;
+    localData.status = "Phase_Secret_Live";
+    await saveToServer(); alert("Phase Started!");
+}
+
+async function declareResults() {
+    const res = await fetch('/api/admin/declare-results', { method: 'POST' });
+    if(res.ok) {
+        localData.status = "Results_Declared";
+        document.getElementById('declareBtn').style.display = 'none';
+        document.getElementById('nextPhaseSelection').style.display = 'block';
+        alert("Results declared!");
+    }
+}
+
+async function startNext(mode) {
+    const s = document.getElementById('nextStart').value;
+    const e = document.getElementById('nextEnd').value;
+    await fetch('/api/admin/start-next-phase', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ mode, startTime: s, endTime: e })
+    });
+    location.reload();
+}
+
+function populateMatchTeams() {
+    const tA = document.getElementById('mTeamA');
+    const tB = document.getElementById('mTeamB');
+    if(!tA || !tB) return;
+
+    // Get team names from your localData
+    const options = localData.teams.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+    tA.innerHTML = '<option value="">Select Team A</option>' + options;
+    tB.innerHTML = '<option value="">Select Team B</option>' + options;
+}
+
+async function scheduleMatch() {
+    const teamA = document.getElementById('mTeamA').value;
+    const teamB = document.getElementById('mTeamB').value;
+    const startTime = document.getElementById('mTime').value;
+
+    if(!teamA || !teamB || !startTime || teamA === teamB) {
+        return alert("Error: Select two different teams and a valid date/time.");
+    }
+
+    const res = await fetch('/api/admin/schedule-match', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ teamA, teamB, startTime })
+    });
+
+    if(res.ok) {
+        alert("Match Scheduled Successfully!");
+        loadScheduledMatches(); // Refresh the list
+    }
+}
+
+async function loadScheduledMatches() {
+    const res = await fetch('/api/tournament/data');
+    const data = await res.json();
+    const list = document.getElementById('adminMatchList');
+    
+    // If there are no matches, show the "None" message
+    if(!data.matches || data.matches.length === 0) {
+        list.innerHTML = `<p style="text-align:center; opacity:0.5; padding:20px;">No matches scheduled yet.</p>`;
+        return;
+    }
+
+    // If there ARE matches, draw them
+    list.innerHTML = data.matches.map(m => `
+        <div class="item-row" style="flex-direction:column; align-items:flex-start; gap:5px; background:rgba(255,255,255,0.05); margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; width:100%;">
+                <b style="color:var(--gold);">${m.teamA} vs ${m.teamB}</b>
+                <span style="font-size:0.7rem; opacity:0.6;">${new Date(m.startTime).toLocaleString()}</span>
+            </div>
+            <div style="display:flex; gap:10px; width:100%; margin-top:5px;">
+                <button class="btn-gold" style="height:25px; font-size:0.6rem; background:#007bff; color:white;">➕ FEED SCORECARD</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ADD THIS TO YOUR SCRIPT
+async function sendInvites() {
+    if(localData.teams.length === 0) return alert("Add teams first!");
+    if(!confirm(`Send invite emails to all ${localData.teams.length} owners?`)) return;
+    
+    const res = await fetch('/api/admin/send-invites', { method: 'POST' });
+    if(res.ok) {
+        alert("Success! Invitations are flying into their inboxes.");
+    } else {
+        alert("Failed to send emails. Make sure your Resend API Key is set on the server.");
+    }
+}
+
+// --- MISSING TOURNAMENT HELPERS ---
+
+async function deleteMatch(matchId) {
+    if(!confirm("Are you sure you want to delete this match?")) return;
+    const res = await fetch(`/api/admin/delete-match/${matchId}`, { method: 'DELETE' });
+    if(res.ok) {
+        alert("Match deleted.");
+        loadScheduledMatches();
+    }
+}
+
+function openScorecardEntry(matchId) {
+    // For tonight, we will just use a prompt or alert since you'll be feeding 
+    // these after the match is actually over.
+    alert("Scorecard Entry for " + matchId + " will open after the match is complete!");
+    // We can build the full UI for this after the auction is done.
+}
+
+</script>
+</body>
+</html>

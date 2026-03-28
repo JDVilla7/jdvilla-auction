@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JDVILLA | Owner Arena</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .tab-bar { display: flex; background: rgba(0,0,0,0.4); border-radius: 10px; margin-bottom: 10px; border: 1px solid #334155; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: 800; opacity: 0.5; transition: 0.3s; font-size: 0.7rem; }
+        .tab.active { opacity: 1; color: var(--gold); border-bottom: 2px solid var(--gold); }
+        .timer-digits { font-size: 3.5rem; font-weight: 900; letter-spacing: 5px; color: var(--gold); text-shadow: 0 0 20px rgba(248, 181, 0, 0.5); text-align: center; }
+        
+        #biddingView { height: 70vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        #playerList { flex: 1; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; }
+        
+        .squad-summary { background: rgba(248, 181, 0, 0.2); border-top: 2px solid var(--gold); padding: 15px; border-radius: 15px 15px 0 0; cursor: pointer; }
+        .squad-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 500px; height: 75vh; background: #0f172a; border: 2px solid var(--gold); border-radius: 20px; z-index: 2000; display: none; flex-direction: column; padding: 20px; box-shadow: 0 0 50px rgba(0,0,0,0.9); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1999; display: none; }
+        .hidden { display: none !important; }
+        .locked-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.3); z-index: 10; display: none; border-radius: 12px; }
+        .submitted-badge { background: #28a745; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; margin-left: 10px; }
+        .filter-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .win-tag { background: #1e293b; border-left: 4px solid var(--gold); padding: 8px; margin-bottom: 5px; font-size: 0.8rem; display: flex; justify-content: space-between; }
+        
+        /* Live Hammer View */
+        .live-card { background: rgba(255,255,255,0.05); border: 2px solid var(--gold); border-radius: 15px; padding: 30px; text-align: center; width: 100%; max-width: 400px; }
+
+        @media (max-width: 600px) { .filter-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body onload="checkExistingSession()">
+<div class="overlay">
+    
+    <div id="loginBox" class="glass-card" style="max-width:400px; margin:auto;">
+        <h1>Owner Login</h1>
+        <input type="email" id="ownerEmail" placeholder="Email">
+        <input type="password" placeholder="Password">
+        <button class="btn-gold" onclick="attemptLogin()">Enter Arena</button>
+    </div>
+
+    <div id="mainArena" class="glass-card dashboard-card hidden" style="display: flex; flex-direction: column; height: 90vh;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; align-items:center;">
+                <span id="displayTeamName" style="font-weight:900; color:var(--gold);">ARENA</span>
+                <span id="lockBadge" class="submitted-badge hidden">LOCKED</span>
+            </div>
+            <div id="budgetDisplay" style="background:var(--gold); color:black; padding:4px 12px; border-radius:20px; font-weight:900;">150.00 CR</div>
+        </div>
+
+        <div class="tab-bar">
+            <div class="tab" id="tab-results" onclick="switchTab('results')">RESULTS</div>
+            <div class="tab active" id="tab-bidding" onclick="switchTab('bidding')">BIDDING</div>
+            <div class="tab" id="tab-live" onclick="switchTab('live')">LIVE</div>
+        </div>
+
+        <div id="biddingView">
+            <div id="lockOverlay" class="locked-overlay"></div>
+            <div class="filter-grid">
+                <input type="text" id="search" placeholder="Search Player..." oninput="filterPlayers()">
+                <select id="roleFilter" onchange="filterPlayers()"><option value="">All Roles</option></select>
+                <select id="countryFilter" onchange="filterPlayers()"><option value="">All Countries</option></select>
+            </div>
+            <div id="playerList"></div>
+            <div class="squad-summary" onclick="toggleSquadModal(true)">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span id="squadCount" style="font-weight:bold;">SQUAD: 0 / 15</span>
+                    <button id="submitBtn" class="btn-gold" style="width:auto; padding:5px 15px;" onclick="event.stopPropagation(); submitFinalSquad()">Submit Bids</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="liveView" class="hidden" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+            <div id="liveHammerContent" style="width: 100%; display: flex; justify-content: center;">
+                <h2 style="opacity: 0.3;">Waiting for Auctioneer...</h2>
+            </div>
+        </div>
+
+        <div id="statusView" class="hidden" style="flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center;">
+            <h2 id="statusTitle">Awaiting Admin...</h2>
+            <div class="timer-digits" id="timerDisplay">00:00:00</div>
+        </div>
+
+        <div id="resultsView" class="hidden" style="flex:1; overflow-y:auto; padding:10px;">
+            <h2 style="color:var(--gold); text-align:center;">YOUR WON PLAYERS</h2>
+            <div id="resultsList"></div>
+        </div>
+
+        <div id="matchesView" class="hidden" style="flex:1; overflow-y:auto; padding:10px;">
+            <h2 style="color:var(--gold); text-align:center;">UPCOMING MATCHES</h2>
+            <div id="matchesList"></div>
+        </div>
+
+        <div id="fantasyView" class="hidden" style="flex:1; overflow-y:auto; padding:10px;">
+            <h2 style="color:var(--gold); text-align:center;">FANTASY ARENA</h2>
+            <div id="fantasyContent"></div>
+        </div>
+
+    </div>
+</div>
+
+<div id="modalOverlay" class="modal-overlay" onclick="toggleSquadModal(false)"></div>
+<div id="squadModal" class="squad-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px;">
+        <h2 style="margin:0; font-size:1.1rem; color:var(--gold);">MY FULL SQUAD</h2>
+        <button onclick="toggleSquadModal(false)" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+    <div class="scroll-list" id="modalSquadList" style="flex:1; overflow-y:auto; margin:10px 0;"></div>
+    <button class="btn-gold" onclick="toggleSquadModal(false)">Back to Bidding</button>
+</div>
+
+<div id="xiModalOverlay" class="modal-overlay" onclick="toggleXIModal(false)"></div>
+<div id="xiModal" class="squad-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px;">
+        <h2 style="margin:0; font-size:1.1rem; color:var(--gold);">SELECT STARTING XI (Pick 11)</h2>
+        <button onclick="toggleXIModal(false)" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+    <div id="xiSelectionList" class="scroll-list" style="flex:1; overflow-y:auto; margin:10px 0;"></div>
+    <div id="xiCountIndicator" style="text-align:center; font-weight:bold; margin-bottom:10px;">Selected: 0 / 11</div>
+    <button class="btn-gold" id="confirmXIBtn" onclick="submitStartingXI()">LOCK PLAYING XI</button>
+</div>
+
+<script>
+    // --- GLOBAL VARIABLES ---
+    let allPlayers = [], mySquad = [], previousWinnings = [], currentBudget = 150;
+    let tournamentData = {}, timerInterval, loggedInEmail = "", currentTab = "bidding", isSubmitted = false;
+    let livePollingInterval = null, lastActivePlayerName = null;
+    let isOwner = false, myTeamName = null; // Identity tracking
+
+    function formatPrice(val) { return val >= 1 ? val.toFixed(2) + " Cr" : (val * 100).toFixed(0) + " Lacs"; }
+
+    function checkExistingSession() {
+        const savedEmail = localStorage.getItem('jdvilla_owner_email');
+        if (savedEmail) { document.getElementById('ownerEmail').value = savedEmail; attemptLogin(); }
+    }
+
+    async function attemptLogin() {
+        const rawEmail = document.getElementById('ownerEmail').value;
+        if(!rawEmail) return;
+        loggedInEmail = rawEmail.trim().toLowerCase(); // Force lowercase to avoid "Ghost" squad issues
+        localStorage.setItem('jdvilla_owner_email', loggedInEmail);
+        
+        try {
+            const [resT, resP, resB, resW] = await Promise.all([
+                fetch('/api/tournament/data'), 
+                fetch('/api/players'),
+                fetch(`/api/bids/${loggedInEmail}`), 
+                fetch(`/api/results/my-squad/${loggedInEmail}`)
+            ]);
+
+            tournamentData = await resT.json();
+            allPlayers = await resP.json();
+            const bidData = await resB.json();
+            mySquad = bidData.bids || [];
+            isSubmitted = bidData.submitted || false;
+            previousWinnings = await resW.json();
+
+            // --- IDENTITY CHECK (TEAM OWNER OR USER) ---
+            const myTeam = (tournamentData.teams || []).find(t => t.email.toLowerCase() === loggedInEmail);
+
+            if(!myTeam) {
+                isOwner = false;
+                myTeamName = null;
+                document.getElementById('displayTeamName').innerText = "USER: " + loggedInEmail.split('@')[0].toUpperCase();
+            } else {
+                isOwner = true;
+                myTeamName = myTeam.name;
+                document.getElementById('displayTeamName').innerText = myTeam.name.toUpperCase();
+            }
+
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('mainArena').classList.remove('hidden');
+            
+            if(isSubmitted) applyLock();
+            setupDynamicFilters(); 
+            calculateRemainingBudget(); 
+            startAppEngine();
+        } catch (e) { 
+            console.error("Login Crash Fix:", e);
+            alert("Server connection error."); 
+        }
+    }
+
+    function applyLock() {
+        isSubmitted = true;
+        if(document.getElementById('lockBadge')) document.getElementById('lockBadge').classList.remove('hidden');
+        if(document.getElementById('lockOverlay')) document.getElementById('lockOverlay').style.display = 'block';
+        if(document.getElementById('submitBtn')) document.getElementById('submitBtn').classList.add('hidden');
+    }
+
+    function calculateRemainingBudget() {
+        let spentCurrentPhase = 0;
+        mySquad.forEach(s => { if (!previousWinnings.find(w => w.name === s.name)) spentCurrentPhase += s.bid; });
+        let spentInHistory = 0;
+        previousWinnings.forEach(p => spentInHistory += p.price);
+        currentBudget = (tournamentData.budget || 150) - spentCurrentPhase - spentInHistory;
+
+        const budgetDiv = document.getElementById('budgetDisplay');
+        if(budgetDiv) {
+            budgetDiv.innerText = currentBudget.toFixed(2) + " CR";
+            budgetDiv.style.background = currentBudget < 0 ? "#ff4d4d" : "var(--gold)";
+            if (currentBudget < 0) budgetDiv.innerHTML = "🚫 OVER BUDGET";
+            else if (currentBudget === 0) budgetDiv.style.color = "black";
+        }
+        
+        const squadCountEl = document.getElementById('squadCount');
+        if(squadCountEl) {
+            const totalCount = previousWinnings.length + (isSubmitted ? 0 : mySquad.length);
+            squadCountEl.innerText = `SQUAD: ${totalCount} / ${tournamentData.maxSquad || 15}`;
+        }
+    }
+
+    // --- PHASE TRANSITION LOGIC ---
+    function startAppEngine() {
+        if(timerInterval) clearInterval(timerInterval);
+
+        if (tournamentData.status === "Auction_Completed") {
+            transformToTournamentUI();
+            renderMatches(); 
+            return; 
+        }
+
+        timerInterval = setInterval(() => {
+            const now = new Date().getTime(), start = new Date(tournamentData.phase1Start).getTime(), end = new Date(tournamentData.phase1End).getTime();
+            if (now >= end && !isSubmitted && currentTab === 'bidding') applyLock();
+
+            const statusTitle = document.getElementById('statusTitle');
+            if (statusTitle) {
+                if (!tournamentData.phase1Start || now < start) {
+                    statusTitle.innerText = "PHASE STARTS IN"; updateTimer(start - now);
+                } else if (now < end) {
+                    statusTitle.innerText = "PHASE LIVE"; updateTimer(end - now);
+                } else {
+                    statusTitle.innerText = "PHASE ENDED"; document.getElementById('timerDisplay').innerText = "00:00:00";
+                }
+            }
+        }, 1000);
+    }
+
+    function transformToTournamentUI() {
+        const tabBar = document.querySelector('.tab-bar');
+        tabBar.innerHTML = `
+            <div class="tab" id="tab-results" onclick="switchTab('results')">MY SQUAD</div>
+            <div class="tab active" id="tab-matches" onclick="switchTab('matches')">MATCHES</div>
+            <div class="tab" id="tab-fantasy" onclick="switchTab('fantasy')">FANTASY</div>
+        `;
+        document.getElementById('biddingView').style.display = 'none';
+        document.getElementById('statusView').classList.add('hidden');
+        switchTab('matches'); 
+    }
+
+    async function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        const btn = document.getElementById('tab-' + tab);
+        if(btn) btn.classList.add('active');
+
+        // Hide all views safely
+        const views = ['resultsView', 'biddingView', 'statusView', 'liveView', 'matchesView', 'fantasyView'];
+        views.forEach(v => {
+            const el = document.getElementById(v);
+            if(el) {
+                if(v === 'biddingView') el.style.display = 'none';
+                else el.classList.add('hidden');
+            }
+        });
+
+        if (tournamentData.status === "Auction_Completed") {
+            if (tab === 'results') {
+                await fetchMyLatestWinnings();
+                document.getElementById('resultsView').classList.remove('hidden');
+                renderFinalSquad();
+            } else if (tab === 'matches') {
+                document.getElementById('matchesView').classList.remove('hidden');
+                renderMatches();
+            } else if (tab === 'fantasy') {
+                document.getElementById('fantasyView').classList.remove('hidden');
+                document.getElementById('fantasyContent').innerHTML = `
+                    <div style="text-align:center; padding:40px; opacity:0.7;">
+                        <h3 style="color:var(--gold);">🏆 FANTASY ARENA</h3>
+                        <p>Selection window opens 6 hours before match start time.</p>
+                        <p style="font-size:0.8rem;">(March 2nd, 3:00 PM for the next match)</p>
+                    </div>`;
+            }
+        } else {
+            if (tab === 'results') {
+                await fetchMyLatestWinnings();
+                document.getElementById('resultsView').classList.remove('hidden');
+                renderFinalSquad();
+            } else if (tab === 'live') {
+                document.getElementById('liveView').classList.remove('hidden');
+                startLivePolling();
+            } else {
+                currentTab = 'bidding';
+                document.getElementById('biddingView').style.display = 'flex';
+            }
+        }
+    }
+
+    // --- SQUAD & MATCH RENDERERS ---
+    async function fetchMyLatestWinnings() {
+        try {
+            const res = await fetch(`/api/results/my-squad/${loggedInEmail}`);
+            if (res.ok) {
+                previousWinnings = await res.json();
+                calculateRemainingBudget();
+            }
+        } catch (e) { console.error("Squad refresh error"); }
+    }
+
+    function renderFinalSquad() {
+        const list = document.getElementById('resultsList');
+        if(!list) return;
+        if(!previousWinnings || previousWinnings.length === 0) {
+            list.innerHTML = "<p style='text-align:center; padding:30px; opacity:0.5;'>No players won yet.</p>";
+            return;
+        }
+        list.innerHTML = previousWinnings.map(p => `
+            <div class="item-row" style="border-left: 4px solid var(--gold); background:rgba(255,255,255,0.03);">
+                <span><b>${p.name}</b></span>
+                <span style="color:var(--gold); font-weight:bold;">${formatPrice(p.price)}</span>
+            </div>`).join('');
+    }
+
+    async function renderMatches() {
+        const res = await fetch('/api/tournament/data');
+        tournamentData = await res.json(); 
+        const list = document.getElementById('matchesList');
+        if(!list) return;
+
+        if(!tournamentData.matches || tournamentData.matches.length === 0) {
+            list.innerHTML = "<p style='text-align:center; opacity:0.5; margin-top:30px;'>No matches scheduled.</p>";
+            return;
+        }
+
+        const now = new Date();
+        list.innerHTML = tournamentData.matches.map(m => {
+            const startTime = new Date(m.startTime);
+            const diffHours = (startTime - now) / (1000 * 60 * 60);
+            const isMyMatch = (m.teamA === myTeamName || m.teamB === myTeamName);
+            const canPickXI = isMyMatch && (diffHours <= 24 && diffHours > 6);
+
+            let actionHtml = "";
+            if (canPickXI) actionHtml = `<button class="btn-gold" style="height:35px; font-size:0.7rem;" onclick="openXISelector('${m.id}')">SELECT STARTING XI</button>`;
+            else if (diffHours > 24) actionHtml = `<p style="font-size:0.7rem; color:#64748b;">⏳ SELECTION OPENS T-24h</p>`;
+            else if (diffHours <= 6 && diffHours > 0) actionHtml = `<p style="font-size:0.7rem; color:var(--gold);">🔒 LINEUPS LOCKED</p>`;
+            else actionHtml = `<p style="font-size:0.7rem; color:#28a745;">🏏 MATCH LIVE / COMPLETED</p>`;
+
+            return `
+                <div class="item-row" style="flex-direction:column; align-items:stretch; border-left: 4px solid var(--gold); background:rgba(255,255,255,0.03); margin-bottom:15px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <div style="flex:1; text-align:center;"><b>${m.teamA}</b></div>
+                        <div style="color:var(--gold); font-weight:900; padding:0 10px;">VS</div>
+                        <div style="flex:1; text-align:center;"><b>${m.teamB}</b></div>
+                    </div>
+                    <div style="text-align:center; margin-top:10px;">
+                        <small style="display:block; margin-bottom:8px; opacity:0.6;">📅 ${startTime.toLocaleString()}</small>
+                        ${actionHtml}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // --- EXISTING HELPERS (AUCTION LOGIC) ---
+    async function startLivePolling() {
+        if(livePollingInterval) clearInterval(livePollingInterval);
+        livePollingInterval = setInterval(async () => {
+            if(currentTab !== 'live') { clearInterval(livePollingInterval); return; }
+            try {
+                const res = await fetch('/api/live/state');
+                const state = await res.json();
+                const container = document.getElementById('liveHammerContent');
+                if (!state.activePlayer && lastActivePlayerName !== null) { await fetchMyLatestWinnings(); lastActivePlayerName = null; }
+                if(!state.activePlayer && state.lastResult) {
+                    const lr = state.lastResult;
+                    container.innerHTML = `<div class="live-card" style="border-color:${lr.status === 'SOLD' ? '#28a745' : '#dc3545'}">
+                        <h1 style="color:${lr.status === 'SOLD' ? '#28a745' : '#dc3545'}; font-size:3rem;">${lr.status}!!</h1>
+                        <h2>${lr.name}</h2>
+                        ${lr.status === 'SOLD' ? `<p>To <b style="color:var(--gold)">${lr.team}</b> for <b style="color:var(--gold)">${lr.price.toFixed(2)} Cr</b></p>` : `<p>Returned to Pool.</p>`}
+                    </div>`;
+                    return;
+                }
+                if(!state.activePlayer) { container.innerHTML = `<h2 style="opacity:0.3;">🔨 Waiting...</h2>`; return; }
+                lastActivePlayerName = state.activePlayer.name;
+                let nextBid;
+                const current = parseFloat(state.currentBid);
+                if (!state.highestBidder) nextBid = current;
+                else {
+                    if (current < 2) nextBid = current + 0.10;
+                    else if (current < 5) nextBid = current + 0.20;
+                    else nextBid = current + 0.50;
+                }
+                const isLeading = state.highestBidder && state.highestBidder.email === loggedInEmail;
+                const isFull = previousWinnings.length >= (tournamentData.maxSquad || 15);
+                container.innerHTML = `<div class="live-card">
+                    <span class="submitted-badge" style="background:var(--gold); color:black;">LIVE</span>
+                    <h1 style="color:var(--gold); margin:10px 0;">${state.activePlayer.name}</h1>
+                    <div style="background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; margin:15px 0;">
+                        <div style="font-size:3.5rem; font-weight:900; color:var(--gold);">${current.toFixed(2)} CR</div>
+                        <div>${state.highestBidder ? `Leader: ${state.highestBidder.teamName}` : 'Opening Bid'}</div>
+                    </div>
+                    <button class="btn-gold" ${isLeading || isFull ? 'disabled' : ''} onclick="placeLiveBid(${nextBid})" style="height:70px; font-size:1.4rem;">
+                        ${isFull ? '🚫 SQUAD FULL' : (isLeading ? '🔥 LEADING' : `BID ${nextBid.toFixed(2)} CR`)}
+                    </button>
+                </div>`;
+            } catch (e) { console.error("Poll Error"); }
+        }, 1000);
+    }
+
+    async function placeLiveBid(amount) {
+        calculateRemainingBudget();
+        if(amount > currentBudget) return alert(`Insufficient Funds!`);
+        const myTeam = tournamentData.teams.find(t => t.email.toLowerCase() === loggedInEmail);
+        try {
+            const res = await fetch('/api/live/bid', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: loggedInEmail, teamName: myTeam.name, amount: parseFloat(amount.toFixed(2)) }) });
+            if(!res.ok) { const err = await res.json(); alert(err.error); }
+        } catch (e) { alert("Bid failed."); }
+    }
+
+    function updateTimer(ms) {
+        let s = Math.floor(ms/1000), m = Math.floor(s/60), h = Math.floor(m/60);
+        const el = document.getElementById('timerDisplay');
+        if(el) el.innerText = `${String(h).padStart(2,'0')}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    }
+
+    function setupDynamicFilters() {
+        const roles = [...new Set(allPlayers.map(p => p.role))].filter(Boolean);
+        const countries = [...new Set(allPlayers.map(p => p.country))].filter(Boolean);
+        const rSelect = document.getElementById('roleFilter'), cSelect = document.getElementById('countryFilter');
+        if(rSelect && cSelect) {
+            rSelect.innerHTML = '<option value="">All Roles</option>';
+            cSelect.innerHTML = '<option value="">All Countries</option>';
+            roles.forEach(role => rSelect.innerHTML += `<option value="${role}">${role}</option>`);
+            countries.forEach(c => cSelect.innerHTML += `<option value="${c}">${c}</option>`);
+        }
+    }
+
+    function filterPlayers() {
+        const q = document.getElementById('search').value.trim().toLowerCase(), r = document.getElementById('roleFilter').value, c = document.getElementById('countryFilter').value, list = document.getElementById('playerList');
+        if(!list) return;
+        const filtered = allPlayers.filter(p => p.name.toLowerCase().includes(q) && (!r || p.role === r) && (!c || p.country === c));
+        list.innerHTML = filtered.map(p => {
+            const s = mySquad.find(x => x.name === p.name);
+            return `<div class="item-row">
+                <div><b>${p.name}</b><br><small>${p.role} | Base: ${formatPrice(p.base)}</small></div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="number" step="0.01" id="bid-${p.name}" style="width:80px;" value="${s ? s.bid : ''}" ${isSubmitted ? 'disabled' : ''}>
+                    ${!isSubmitted ? `<button class="btn-gold" style="width:auto; padding:6px 12px;" onclick="placeBid('${p.name}', ${p.base})">BID</button>` : ''}
+                </div>
+            </div>`}).join('');
+    }
+
+    async function placeBid(name, base) {
+        if(isSubmitted) return;
+        const val = parseFloat(document.getElementById(`bid-${name}`).value);
+        if(isNaN(val) || val < base) return alert("Min: " + formatPrice(base));
+        mySquad = mySquad.filter(x => x.name !== name); mySquad.push({name, bid: val});
+        calculateRemainingBudget();
+        if(currentBudget < 0) { alert("Budget Exceeded!"); mySquad = mySquad.filter(x => x.name !== name); calculateRemainingBudget(); return; }
+        await fetch('/api/bids/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: loggedInEmail, bids: mySquad }) });
+    }
+
+    async function submitFinalSquad() {
+        const totalCount = previousWinnings.length + mySquad.length;
+        if(totalCount < (tournamentData.minSquad || 11)) return alert(`Total squad size (${totalCount}) is too low!`);
+        if(!confirm("Lock bids?")) return;
+        const res = await fetch('/api/bids/submit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: loggedInEmail }) });
+        if(res.ok) location.reload();
+    }
+
+    function toggleSquadModal(show) {
+        const overlay = document.getElementById('modalOverlay'), modal = document.getElementById('squadModal');
+        if(overlay && modal) { overlay.style.display = show ? 'block' : 'none'; modal.style.display = show ? 'flex' : 'none'; if(show) renderModalSquad(); }
+    }
+
+    function renderModalSquad() {
+        const list = document.getElementById('modalSquadList');
+        if(!list) return;
+        let html = `<h4 style="color:var(--gold);">WINNERS</h4>`;
+        previousWinnings.forEach(p => html += `<div class="win-tag"><span>${p.name}</span> <span style="color:var(--gold)">${formatPrice(p.price)}</span></div>`);
+        html += `<h4 style="color:var(--gold); margin-top:20px;">PHASE 2 BIDS</h4>`;
+        mySquad.forEach((s, i) => html += `<div class="item-row"><span><b>${s.name}</b> - ${formatPrice(s.bid)}</span>${!isSubmitted ? `<button onclick="removeBid(${i})" style="background:red; color:white; border:none; padding:5px; border-radius:4px;">X</button>` : ''}</div>`);
+        list.innerHTML = html;
+    }
+
+    async function removeBid(i) {
+        mySquad.splice(i, 1); calculateRemainingBudget(); renderModalSquad(); filterPlayers();
+        await fetch('/api/bids/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: loggedInEmail, bids: mySquad }) });
+    }
+
+    let currentMatchId = null;
+    let selectedXI = [];
+
+    function toggleXIModal(show) {
+        document.getElementById('xiModalOverlay').style.display = show ? 'block' : 'none';
+        document.getElementById('xiModal').style.display = show ? 'flex' : 'none';
+    }
+
+    function openXISelector(matchId) {
+        currentMatchId = matchId;
+        selectedXI = [];
+        toggleXIModal(true);
+        renderXISelectionList();
+    }
+
+    function renderXISelectionList() {
+        const list = document.getElementById('xiSelectionList');
+        // Owners can only pick from their WON players (previousWinnings)
+        list.innerHTML = previousWinnings.map(p => {
+            const isPicked = selectedXI.includes(p.name);
+            return `
+                <div class="item-row" style="cursor:pointer; ${isPicked ? 'border:1px solid var(--gold); background:rgba(248,181,0,0.1);' : ''}" onclick="togglePlayerInXI('${p.name}')">
+                    <span><b>${p.name}</b></span>
+                    <span>${isPicked ? '✅' : '➕'}</span>
+                </div>
+            `;
+        }).join('');
+        document.getElementById('xiCountIndicator').innerText = `Selected: ${selectedXI.length} / 11`;
+    }
+
+    function togglePlayerInXI(name) {
+        if (selectedXI.includes(name)) {
+            selectedXI = selectedXI.filter(n => n !== name);
+        } else {
+            if (selectedXI.length >= 11) return alert("You can only pick 11 players!");
+            selectedXI.push(name);
+        }
+        renderXISelectionList();
+    }
+
+    async function submitStartingXI() {
+        if (selectedXI.length !== 11) return alert("You must pick exactly 11 players!");
+        if (!confirm("Lock this lineup? You cannot change it once the T-6h window starts.")) return;
+
+        const res = await fetch('/api/tournament/submit-xi', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                matchId: currentMatchId, 
+                email: loggedInEmail, 
+                players: selectedXI 
+            })
+        });
+
+        if (res.ok) {
+            alert("Playing XI Submitted Successfully!");
+            toggleXIModal(false);
+            renderMatches();
+        }
+    }
+    
+</script>
+</body>
+</html>
