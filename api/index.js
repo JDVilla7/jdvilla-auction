@@ -26,6 +26,16 @@ async function saveDB(newState) {
 // --- 🕵️‍♂️ LOBBY/TEST ---
 app.get('/api/test', (req, res) => res.json({ status: "Lappu is Online!", time: new Date().toISOString() }));
 
+app.get('/api/check-db', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('auction_db').select('*').limit(1);
+        if (error) return res.json({ success: false, error: error.message, hint: error.hint });
+        res.json({ success: true, message: "Database is reachable!", data });
+    } catch (e) {
+        res.json({ success: false, error: e.message });
+    }
+});
+
 // --- 🛡️ ADMIN AUTH ---
 app.post('/api/admin/login', (req, res) => {
     if (req.body.email === "admin@jdvilla.com" && req.body.password === "Lappu2026") return res.json({ success: true });
