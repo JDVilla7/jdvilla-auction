@@ -205,31 +205,23 @@ function logoutAdmin() {
 
 // 3. LOBBY NAVIGATION
 async function showLobby() {
-    // Hide all main boxes
-    document.getElementById('loginBox').style.display = 'none';
-    document.getElementById('setupBox').style.display = 'none';
-    document.getElementById('dashBox').style.display = 'none';
-    document.getElementById('lobbyBox').style.display = 'block';
+    try {
+        const response = await fetch('https://jdvilla-auction.vercel.app/api/tournament/data');
+        
+        // Check if the server actually sent a 200 OK
+        if (!response.ok) {
+            const errorText = await response.text(); // Read the text "A server error..."
+            console.error("Server is broken:", errorText);
+            alert("Vercel Server Error: Check your logs!");
+            return;
+        }
 
-    // Fetch tournament status to update the Lobby UI
-    const res = await fetch('/api/tournament/data');
-    localData = await res.json();
-
-    const activeTitle = document.getElementById('activeLeagueName');
-    const resumeBtn = document.getElementById('resumeBtn');
-    const activeStatus = document.getElementById('activeLeagueStatus');
-
-    if(localData.leagueName) {
-        activeTitle.innerText = localData.leagueName.toUpperCase();
-        activeStatus.innerText = "Current Status: " + localData.status.replace(/_/g, ' ');
-        resumeBtn.style.display = 'block';
-    } else {
-        activeTitle.innerText = "No Active Tournament";
-        activeStatus.innerText = "Start a fresh one below.";
-        resumeBtn.style.display = 'none';
+        const data = await response.json();
+        // ... rest of your lobby logic
+    } catch (err) {
+        console.error("Network/JSON Error:", err);
     }
 }
-
 function showSetup() {
     if(localData.leagueName && !confirm("Warning: Starting a new tournament will reset current data. Proceed?")) return;
     document.getElementById('lobbyBox').style.display = 'none';
