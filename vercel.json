@@ -1,8 +1,10 @@
 {
   "version": 2,
+  "redirects": [
+    { "source": "/", "destination": "/owner.html", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/", "destination": "/public/owner.html" },
     { "source": "/owner.html", "destination": "/public/owner.html" },
     { "source": "/admin.html", "destination": "/public/admin.html" },
     { "source": "/style.css", "destination": "/public/style.css" },
